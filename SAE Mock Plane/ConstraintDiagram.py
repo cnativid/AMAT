@@ -1,5 +1,7 @@
 import numpy as np
 import matplotlib.pyplot as plt
+import math
+import time
 from ambiance import Atmosphere
 
 g = 32.17 # ft/s^2
@@ -11,25 +13,73 @@ def Constraint_TO(WS):
     C_LTO =  0.6
     C_DTO =  0.02 
     C_Lmax = 1.5
-    mu = 0.3
+    mu = 0.03
     rho = 0.0023769 # sea level, slug/ft^3
     V_LOF = 1.1*np.sqrt(2*WS/(rho*C_Lmax))
     return 1/((1.21/(g*rho*C_Lmax*S_G)*WS+0.605/C_Lmax*(C_DTO-mu*C_LTO) + mu)*V_LOF/np.sqrt(2)/(eta_p*550/745.7))
 
 def Constraint_LDG():
-    S_LGR = 400 # ft
+    S_LGR = 200.0 # ft
     mu = 0.3
     rho = 0.0023769 # sea level, slug/ft^3
+    C_LLD =  0
+    C_DLD =  0.1
+    C_Lmax = 1.5
 
-    return C_Lmax/2*rho*(2*g*mu*S_LGR)/1.3**2
+    res = [1.0,1.0]
+    def dx(x,V_stall):
+        return np.array([x[1], -g*(mu+x[1]**2/V_stall**2*((C_DLD-C_LLD*mu)/C_Lmax))])
+    
+    
+    dt=1e-2
+    V_stall = [1,1+1e-1]
+
+    k = 1.3 # touchdown velocity multiplier
+    while np.abs(res[1]) > 1e-3:
+        # x0 = np.array([0,42.4],float)
+        x1 = [np.array([0,k*V_stall[0]],float)]
+        x2 = [np.array([0,k*V_stall[1]],float)]
+        # t = [0]
+        i=0
+        while x1[i][1] > 0:
+            # t.append(t[i]+dt)
+            x1.append(x1[i] + dt*dx(x1[i],V_stall[0]))
+            i += 1 
+
+        i=0
+        while x2[i][1] > 0:
+            # t.append(t[i]+dt)
+            x2.append(x2[i] + dt*dx(x2[i],V_stall[1]))
+            i += 1
+
+        print(V_stall,res)
+        res = [x1[-1][0]-S_LGR,x2[-1][0]-S_LGR]
+        V_stall = [V_stall[1] , V_stall[1] - res[1]/((res[1]-res[0])/(V_stall[1]-V_stall[0]))]
+    V_stall = V_stall[0]
+    return rho*V_stall**2*C_Lmax/2
+    # return S_LGR/80*C_Lmax
+
+def Constraint_ngTurn(WS,n):
+    C_Lmax = 1
+    rho = 0.0023769 # sea level, slug/ft^3
+    V_stall = np.sqrt(2*WS/rho/C_Lmax)
+    V_LOF = 1.3*V_stall
+    q  = rho/2*V_LOF**2
+    C_Dmin = 0.1
+    ARe = 5
+    
+    k = 1/(np.pi*ARe)
+    return q*(C_Dmin/WS+k*(n/q)**2*WS)*550/745.7
 
 if __name__ == "__main__":
-    plt.figure(figsize=[5,6])
+    plt.figure(figsize=[7,5])
     N = 101
-    WS = np.linspace(5,40,N)
+    WS = np.linspace(1,6,N)
     WP = np.linspace(0,.03,N)
     plt.plot(WS,Constraint_TO(WS))
+    plt.plot(WS,Constraint_ngTurn(WS,1.4))
     plt.plot(Constraint_LDG()*np.ones(N),WP)
     plt.xlabel('W/S [lbf/ft^2]')
     plt.ylabel('W/P [lbf/W]')
     plt.show()
+    # Constraint_LDG()
