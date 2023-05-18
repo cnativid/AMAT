@@ -2,6 +2,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import math
 import time
+from labellines import labelLines # pip install matplotlib-label-lines
 from ambiance import Atmosphere
 
 g = 32.17 # ft/s^2
@@ -52,39 +53,78 @@ def Constraint_LDG():
             x2.append(x2[i] + dt*dx(x2[i],V_stall[1]))
             i += 1
 
-        print(V_stall,res)
+        # print(V_stall,res)
         res = [x1[-1][0]-S_LGR,x2[-1][0]-S_LGR]
         V_stall = [V_stall[1] , V_stall[1] - res[1]/((res[1]-res[0])/(V_stall[1]-V_stall[0]))]
     V_stall = V_stall[0]
     return rho*V_stall**2*C_Lmax/2
     # return S_LGR/80*C_Lmax
 
-# def Constraint_ngTurn
+# def Constraint_ngTurn(WS,n):
+#     C_Lmax = 1
+#     rho = 0.0023769 # sea level, slug/ft^3
+#     V_stall = np.sqrt(2*WS/rho/C_Lmax)
+#     V_LOF = 1.3*V_stall
+#     q  = rho/2*V_LOF**2
+#     C_Dmin = 0.1
+#     ARe = 5
+    
+#     k = 1/(np.pi*ARe)
+#     return q*(C_Dmin/WS+k*(n/q)**2*WS)*550/745.7
+
 def Constraint_MaxWeight():
     P_max = 1000 # our powerplant max power, Watts
     W_max = 55 # MTOW, lb
     return W_max/P_max
 
-def Constraint_Cruise():
-    eta = 0.3 # prop efficiency at trim
+def Constraint_Cruise(WS,V_cruise):
+    eta_p = 0.8 # prop efficiency at trim
     P_cruise = 0.5 # frac of max power for cruise
-    V_trim = 70
-    LD = 4 # trim L/D
-    return eta*LD/P_cruise/V_trim
+    # V_cruise = 30
+    # LD = 9 # trim L/D
+    C_D0 = 0.02
+    rho = 0.0023769 # sea level, slug/ft^3
+    q  = rho/2*V_cruise**2
+    AR = 5
+    e = .8
+    return P_cruise/( q*V_cruise*(C_D0+WS**2/(q**2*np.pi*AR*e)) / (550/745.7*eta_p*WS))
 
 if __name__ == "__main__":
-    plt.figure(figsize=[5,6])
+    plt.figure(figsize=[8,6])
     N = 101
-    WS = np.linspace(1,6,N)
-    WP = np.linspace(0,.03,N)
-    plt.plot(WS,Constraint_TO(WS), label = 'TO')
-    plt.plot(Constraint_LDG()*np.ones(N),WP, label = 'LDG')
-    plt.plot(WS,Constraint_MaxWeight()*np.ones(N), label = 'Max Weight')
-    plt.plot(WS,Constraint_Cruise()*np.ones(N), label = 'Cruise')
+    WS = np.linspace(1e-3,6,N)
+    WP = np.linspace(1e-3,Constraint_TO(WS[0]),N)
+
+    ## Evaluate Constraints
+    WP_Takeoff=Constraint_TO(WS)
+    WS_Landing=Constraint_LDG()*np.ones(N)
+    WP_MaxWeight=Constraint_MaxWeight()*np.ones(N)
+    WP_Cruise30=Constraint_Cruise(WS,30)
+    WP_Cruise50=Constraint_Cruise(WS,50)
+
+    ## Plot constraints
+    plt.plot(WS,Constraint_TO(WS), label = '100 ft Takeoff')
+    plt.plot(WS_Landing,WP, label = '400 ft Takeoff')
+    plt.plot(WS,WP_MaxWeight, label = 'Max Weight (55 lb)')
+    plt.plot(WS,WP_Cruise30, label = '30 ft/s Cruise')
+    plt.plot(WS,WP_Cruise50, label = '50 ft/s Cruise')
+
+    ## Plotting Options
     plt.xlabel('W/S [lbf/ft^2]')
     plt.ylabel('W/P [lbf/W]')
-    plt.legend()
+    # plt.legend()
+    plt.ylim(0,0.1)
     plt.grid()
+    plt.minorticks_on()
+    labelLines(plt.gca().get_lines(), zorder=2.5,fontsize = 7)
+
+
+    plt.fill_between(
+        x= WS, 
+        y1= np.minimum.reduce([WP_Takeoff,WP_MaxWeight,WP_Cruise30,WP_Cruise50]),
+        where= (0 <= WS)&(WS <= Constraint_LDG()),
+        color= "b",
+        alpha= 0.2)
     plt.show()
 
     # Constraint_LDG()
