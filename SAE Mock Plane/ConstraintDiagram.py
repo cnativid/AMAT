@@ -77,11 +77,14 @@ if __name__ == "__main__":
     N = 101
     WS = np.linspace(1,6,N)
     WP = np.linspace(0,.03,N)
-    plt.plot(WS,Constraint_TO(WS))
-    plt.plot(Constraint_LDG()*np.ones(N),WP)
-    plt.plot(WS,Constraint_MaxWeight()*np.ones(N))
-    plt.plot(WS,Constraint_Cruise()*np.ones(N))
+    plt.plot(WS,Constraint_TO(WS), label = 'TO')
+    plt.plot(Constraint_LDG()*np.ones(N),WP, label = 'LDG')
+    plt.plot(WS,Constraint_MaxWeight()*np.ones(N), label = 'Max Weight')
+    plt.plot(WS,Constraint_Cruise()*np.ones(N), label = 'Cruise')
     plt.xlabel('W/S [lbf/ft^2]')
     plt.ylabel('W/P [lbf/W]')
+    plt.legend()
+    plt.grid()
     plt.show()
+
     # Constraint_LDG()
