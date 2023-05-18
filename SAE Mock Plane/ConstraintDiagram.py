@@ -60,6 +60,17 @@ def Constraint_LDG():
     # return S_LGR/80*C_Lmax
 
 # def Constraint_ngTurn
+def Constraint_MaxWeight():
+    P_max = 1000 # our powerplant max power, Watts
+    W_max = 55 # MTOW, lb
+    return W_max/P_max
+
+def Constraint_Cruise():
+    eta = 0.3 # prop efficiency at trim
+    P_cruise = 0.5 # frac of max power for cruise
+    V_trim = 70
+    LD = 4 # trim L/D
+    return eta*LD/P_cruise/V_trim
 
 if __name__ == "__main__":
     plt.figure(figsize=[5,6])
@@ -68,6 +79,8 @@ if __name__ == "__main__":
     WP = np.linspace(0,.03,N)
     plt.plot(WS,Constraint_TO(WS))
     plt.plot(Constraint_LDG()*np.ones(N),WP)
+    plt.plot(WS,Constraint_MaxWeight()*np.ones(N))
+    plt.plot(WS,Constraint_Cruise()*np.ones(N))
     plt.xlabel('W/S [lbf/ft^2]')
     plt.ylabel('W/P [lbf/W]')
     plt.show()
