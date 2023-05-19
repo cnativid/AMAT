@@ -57,7 +57,7 @@ def Constraint_LDG():
         res = [x1[-1][0]-S_LGR,x2[-1][0]-S_LGR]
         V_stall = [V_stall[1] , V_stall[1] - res[1]/((res[1]-res[0])/(V_stall[1]-V_stall[0]))]
     V_stall = V_stall[0]
-    return rho*V_stall**2*C_Lmax/2
+    return [rho*V_stall**2*C_Lmax/2,V_stall]
     # return S_LGR/80*C_Lmax
 
 # def Constraint_ngTurn(WS,n):
@@ -85,7 +85,7 @@ def Constraint_Cruise(WS,V_cruise):
     C_D0 = 0.02
     rho = 0.0023769 # sea level, slug/ft^3
     q  = rho/2*V_cruise**2
-    AR = 5
+    AR = 10
     e = .8
     return P_cruise/( q*V_cruise*(C_D0+WS**2/(q**2*np.pi*AR*e)) / (550/745.7*eta_p*WS))
 
@@ -97,17 +97,27 @@ if __name__ == "__main__":
 
     ## Evaluate Constraints
     WP_Takeoff=Constraint_TO(WS)
-    WS_Landing=Constraint_LDG()*np.ones(N)
+    LDG_values = Constraint_LDG() # [ WS_Landing , V_stall ]
+    # WS_Landing=Constraint_LDG()*np.ones(N)
+    WS_Landing=LDG_values[0]*np.ones(N)
     WP_MaxWeight=Constraint_MaxWeight()*np.ones(N)
-    WP_Cruise30=Constraint_Cruise(WS,30)
-    WP_Cruise50=Constraint_Cruise(WS,50)
+    # WP_Cruise30=Constraint_Cruise(WS,30)
+    # WP_Cruise50=Constraint_Cruise(WS,50)
+    V_variation = [10,20,30] # Difference between cruise velocity and stall velocity
+    V_Cruise = LDG_values[1]*np.ones(len(V_variation)) + V_variation
+    WP_Cruise = np.zeros([len(V_Cruise),len(WS)])
+    for i in range(0,len(V_Cruise)):
+        WP_Cruise[i,:] = Constraint_Cruise(WS,V_Cruise[i]) # Cruise @ V_stall + 10
+
 
     ## Plot constraints
     plt.plot(WS,Constraint_TO(WS), label = '100 ft Takeoff')
     plt.plot(WS_Landing,WP, label = '400 ft Takeoff')
     plt.plot(WS,WP_MaxWeight, label = 'Max Weight (55 lb)')
-    plt.plot(WS,WP_Cruise30, label = '30 ft/s Cruise')
-    plt.plot(WS,WP_Cruise50, label = '50 ft/s Cruise')
+    # plt.plot(WS,WP_Cruise30, label = '30 ft/s Cruise')
+    # plt.plot(WS,WP_Cruise50, label = '50 ft/s Cruise')
+    for i in range(0,len(V_Cruise)):
+        plt.plot(WS,WP_Cruise[i,:], label = f'V_stall + {V_variation[i]} ft/s Cruise')
 
     ## Plotting Options
     plt.xlabel('W/S [lbf/ft^2]')
@@ -119,12 +129,13 @@ if __name__ == "__main__":
     labelLines(plt.gca().get_lines(), zorder=2.5,fontsize = 7)
 
 
-    plt.fill_between(
-        x= WS, 
-        y1= np.minimum.reduce([WP_Takeoff,WP_MaxWeight,WP_Cruise30,WP_Cruise50]),
-        where= (0 <= WS)&(WS <= Constraint_LDG()),
-        color= "b",
-        alpha= 0.2)
+    # plt.fill_between(
+    #     x= WS, 
+    #     # y1= np.minimum.reduce([WP_Takeoff,WP_MaxWeight,WP_Cruise30,WP_Cruise50]),
+    #     y1= np.minimum.reduce([WP_Takeoff,WP_MaxWeight,WP_Cruise10]),
+    #     where= (0 <= WS)&(WS <= Constraint_LDG()),
+    #     color= "b",
+    #     alpha= 0.2)
     plt.show()
 
     # Constraint_LDG()
